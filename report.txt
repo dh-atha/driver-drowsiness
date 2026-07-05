@@ -1,0 +1,105 @@
+Laporan Proyek Mata Kuliah Computer
+Vision
+Sistem Deteksi Kantuk Pengemudi (Driver Drowsiness
+Detection) Menggunakan OpenCV
+Disusun Oleh: Kelompok 5
+BAB I: PENDAHULUAN
+1.1 Latar Belakang
+Keselamatan berkendara merupakan salah satu isu krusial dalam transportasi darat. Faktor
+manusia, khususnya kelelahan dan rasa kantuk saat mengemudi, menjadi salah satu penyebab
+utama kecelakaan lalu lintas yang fatal. Deteksi dini terhadap kondisi fisik pengemudi yang
+mengalami penurunan kesadaran dapat menekan angka fatalitas secara signifikan.
+Perkembangan teknologi Computer Vision saat ini memungkinkan sistem untuk memantau
+kondisi pengemudi secara real-time tanpa mengganggu aktivitas mengemudi. Proyek ini
+memfokuskan pada pengembangan solusi berbasis perangkat lunak yang ringan, efisien, dan
+praktis dengan memanfaatkan webcam bawaan laptop, sehingga implementasinya lebih
+ekonomis dan mudah direalisasikan sebagai proyek akademik.
+1.2 Rumusan Masalah
+1. Bagaimana cara mendeteksi area wajah dan mengunci koordinat mata pengemudi secara
+real-time menggunakan webcam laptop?
+2. Bagaimana menerapkan algoritma Eye Aspect Ratio (EAR) untuk mengukur durasi mata
+tertutup sebagai indikator kantuk?
+1.3 Tujuan Proyek
+1. Membangun sistem deteksi kantuk yang responsif dan berjalan lancar pada spesifikasi
+laptop standar.
+2. Mengimplementasikan logika threshold waktu untuk memicu alarm peringatan dini secara
+visual dan tekstual ketika pengemudi terdeteksi mengantuk.
+BAB II: LANDASAN TEORI DAN METODOLOGI
+2.1 Pustaka dan Perangkat Lunak
+● Python: Bahasa pemrograman utama untuk pemrosesan data dan logika program.
+● OpenCV (Open Source Computer Vision Library): Library utama untuk menangkap
+input video frame-by-frame dari webcam, konversi ruang warna, dan rendering grafis teks
+
+-- 1 of 3 --
+
+indikator.
+● Facial Landmark Predictor: Pustaka pendukung untuk memetakan koordinat titik wajah
+(khususnya 6 titik spesifik pada masing-masing mata).
+2.2 Metode Perhitungan Eye Aspect Ratio (EAR)
+Sistem ini menggunakan algoritma berbasis matematika untuk menentukan apakah mata dalam
+keadaan terbuka atau tertutup. Formula EAR menghitung rasio perbandingan antara jarak
+vertikal kelopak mata dengan jarak horizontalnya. Persamaan matematis yang digunakan
+adalah sebagai berikut:
+EAR = (|p2 - p6| + |p3 - p5|) / (2 * |p1 - p4|)
+Di mana p1 sampai p6 adalah titik koordinat kelopak mata yang dideteksi oleh pustaka
+landmark wajah.
+2.3 Alur Kerja Sistem
+1. Inisialisasi Kamera: Program mengaktifkan webcam lokal laptop dan membaca aliran
+video.
+2. Pra-pemrosesan Citra: Setiap frame diubah ke skala abu-abu (grayscale) untuk
+mempercepat proses komputasi.
+3. Deteksi Wajah dan Mata: Melakukan localization area wajah dan memetakan koordinat
+mata.
+4. Kalkulasi & Thresholding: Menghitung nilai EAR. Jika nilai EAR berada di bawah
+ambang batas selama jumlah frame berturut-turut yang ditentukan (misalnya 3 detik),
+sistem akan mengategorikan pengemudi dalam kondisi mengantuk.
+BAB III: RANCANGAN IMPLEMENTASI
+3.1 Kebutuhan Sistem
+Kategori 	Komponen 	Keterangan
+Perangkat Keras 	Laptop Standar 	Minimal RAM 4GB, memiliki
+Webcam internal terintegrasi.
+Perangkat Lunak 	Sistem Operasi 	Windows / macOS / Linux.
+Bahasa & IDE 	Python 3.x & VS Code 	Lingkungan pengembangan
+kode program terintegrasi.
+Pustaka Python 	OpenCV, NumPy 	Library pemrosesan citra
+digital dasar dan manipulasi
+array matriks.
+
+-- 2 of 3 --
+
+3.2 Indikator Logika Program
+● Kondisi Normal: Nilai EAR > Batas Threshold → Status: "Active / Safe".
+● Kondisi Mengantuk: Nilai EAR < Batas Threshold secara kontinu → Status: "Drowsiness
+Detected! Wake Up!".
+BAB IV: JADWAL PELAKSANAAN PROYEK
+Minggu 	Kegiatan 	Output / Target
+Minggu 1 	Studi literatur, riset kode
+referensi, instalasi
+environment Python.
+Environment siap pakai dan
+struktur project terbentuk.
+Minggu 2 	Implementasi modul deteksi
+wajah dan perhitungan nilai
+matematis EAR.
+Logika pembacaan kondisi
+mata berhasil diuji.
+Minggu 3 	Integrasi modul alarm (visual
+overlay teks dan status alert)
+serta pengujian FPS.
+Aplikasi berjalan stabil secara
+real-time pada perangkat
+laptop.
+Minggu 4 	Penyusunan laporan akhir,
+dokumentasi pengujian, dan
+persiapan demo aplikasi.
+Laporan final selesai dan
+sistem siap dipresentasikan.
+BAB V: KESIMPULAN
+Proyek pengembangan sistem Driver Drowsiness Detection ini dirancang untuk memberikan
+solusi keselamatan berkendara yang praktis, portabel, dan efisien. Dengan meminimalkan
+dependensi perangkat keras eksternal dan memfokuskan komputasi pada library lokal, sistem
+dapat berjalan optimal pada spesifikasi laptop standar, menjadikannya pilihan proyek matkul
+yang solutif serta mudah untuk didemonstrasikan.
+
+-- 3 of 3 --
+

@@ -1,0 +1,6 @@
+{
+  "name": "Driver Drowsiness Detection",
+  "description": "Real-time driver drowsiness detection application using webcam, MediaPipe Face Mesh, and Eye Aspect Ratio (EAR) calculation.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
