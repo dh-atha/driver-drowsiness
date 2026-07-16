@@ -20,6 +20,8 @@ import {
 
 import { DriverStatus, EarLog, SystemSettings } from "./types";
 import { startAlarmBuzzer, stopAlarmBuzzer } from "./utils/audio";
+import { useTensorflowModel } from "./hooks/useTensorflowModel";
+import type { EyePrediction } from "./types";
 
 // Components
 import WebcamDetection from "./components/WebcamDetection";
@@ -58,9 +60,18 @@ export default function App() {
     return Array.from({ length: 30 }, (_, i) => ({ index: i, EAR: 0.28 }));
   });
 
+  const {
+    model: eyeClassifierModel,
+    status: eyeClassifierStatus,
+    error: eyeClassifierError,
+  } = useTensorflowModel({
+    modelUrl: "/models/eye-classifier/model.json",
+  });
+
   const lastStatusRef = useRef<DriverStatus | null>(null);
   const lastChartAppendRef = useRef(0);
   const closedSinceRef = useRef<number | null>(null);
+  const eyePredictionRef = useRef<EyePrediction | null>(null);
 
   const latestRef = useRef({
     useWebcam,
@@ -72,6 +83,8 @@ export default function App() {
     earThreshold: settings.earThreshold,
     durationThreshold: settings.durationThreshold,
     isAlarmEnabled: settings.isAlarmEnabled,
+    mlClosedProbability: 0,
+    eyeClassifierStatus,
   });
 
   // Keep latestRef up to date on every render
@@ -85,6 +98,9 @@ export default function App() {
     earThreshold: settings.earThreshold,
     durationThreshold: settings.durationThreshold,
     isAlarmEnabled: settings.isAlarmEnabled,
+    mlClosedProbability:
+      eyePredictionRef.current?.averageClosedProbability ?? 0,
+    eyeClassifierStatus,
   };
 
   // Append new points to telemetry chart history
@@ -125,6 +141,12 @@ export default function App() {
     }
   };
 
+  const handleEyePrediction = (prediction: EyePrediction | null) => {
+    eyePredictionRef.current = prediction;
+    latestRef.current.mlClosedProbability =
+      prediction?.averageClosedProbability ?? 0;
+  };
+
   // Update simulator value & update chart
   const handleSimulatedEarChange = (val: number) => {
     setSimulatedEar(val);
@@ -141,12 +163,18 @@ export default function App() {
         isFaceTracked: currentFaceTracked,
         earThreshold,
         durationThreshold,
+        mlClosedProbability,
+        eyeClassifierStatus: currentEyeClassifierStatus,
       } = latestRef.current;
 
       const activeEar = currentUseWebcam ? currentAvgEar : currentSimEar;
       const isReady = !currentUseWebcam || currentFaceTracked;
+      const modelClosed =
+        currentUseWebcam &&
+        currentEyeClassifierStatus === "ready" &&
+        mlClosedProbability >= 0.85;
 
-      if (isReady && activeEar < earThreshold) {
+      if (isReady && (activeEar < earThreshold || modelClosed)) {
         if (closedSinceRef.current === null) {
           closedSinceRef.current = Date.now();
         }
@@ -344,6 +372,9 @@ export default function App() {
                 <WebcamDetection
                   onEarCalculated={handleEarCalculated}
                   onFaceDetected={setIsFaceTracked}
+                  onEyePrediction={handleEyePrediction}
+                  eyeClassifierModel={eyeClassifierModel}
+                  eyeClassifierStatus={eyeClassifierStatus}
                   isActive={useWebcam}
                 />
               </div>
@@ -357,6 +388,16 @@ export default function App() {
                 2. Posisikan wajah tepat di depan kamera.
                 <br />
                 3. Ketika kelopak mata menutup, kurva EAR akan menukik ke bawah.
+                <br />
+                4. Model CNN dipakai sebagai sinyal tambahan saat tersedia.
+                {eyeClassifierError ? (
+                  <>
+                    <br />
+                    <span className="text-rose-400">
+                      Model CNN gagal dimuat: {eyeClassifierError}
+                    </span>
+                  </>
+                ) : null}
               </div>
             </div>
           ) : (

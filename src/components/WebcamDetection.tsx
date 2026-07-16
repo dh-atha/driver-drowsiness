@@ -3,26 +3,47 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Camera, CameraOff, Video, ShieldAlert, Loader } from 'lucide-react';
+import React, { useEffect, useRef, useState } from "react";
+import { Camera, CameraOff, Video, ShieldAlert, Loader } from "lucide-react";
+import type { EyePrediction } from "../types";
+import type { TensorflowModelStatus } from "../hooks/useTensorflowModel";
+import { inferEyePrediction } from "../utils/eyeInference";
 
 interface WebcamDetectionProps {
-  onEarCalculated: (leftEar: number, rightEar: number, averageEar: number) => void;
+  onEarCalculated: (
+    leftEar: number,
+    rightEar: number,
+    averageEar: number,
+  ) => void;
   onFaceDetected: (detected: boolean) => void;
+  onEyePrediction: (prediction: EyePrediction | null) => void;
+  eyeClassifierModel: any | null;
+  eyeClassifierStatus: TensorflowModelStatus;
   isActive: boolean;
 }
 
-export default function WebcamDetection({ onEarCalculated, onFaceDetected, isActive }: WebcamDetectionProps) {
+export default function WebcamDetection({
+  onEarCalculated,
+  onFaceDetected,
+  onEyePrediction,
+  eyeClassifierModel,
+  eyeClassifierStatus,
+  isActive,
+}: WebcamDetectionProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(
+    null,
+  );
   const [isFaceMeshLoaded, setIsFaceMeshLoaded] = useState(false);
-  
+
   const activeCameraRef = useRef<any>(null);
   const activeFaceMeshRef = useRef<any>(null);
+  const isInferenceRunningRef = useRef(false);
+  const lastInferenceAtRef = useRef(0);
 
   useEffect(() => {
     // Check if MediaPipe is available in global scope
@@ -61,12 +82,14 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
         activeFaceMeshRef.current.close();
         activeFaceMeshRef.current = null;
       }
+      onEyePrediction(null);
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
         videoRef.current.srcObject = null;
       }
       onFaceDetected(false);
+      onEyePrediction(null);
       setLoading(false);
     } catch (err) {
       console.error("Error stopping camera:", err);
@@ -80,9 +103,11 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
 
     try {
       // 1. Check for camera permission first
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 },
+      });
       setPermissionGranted(true);
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -96,14 +121,15 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
       }
 
       const faceMesh = new FaceMeshClass({
-        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        locateFile: (file: string) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
 
       faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true, // refine landmarks around eyes
         minDetectionConfidence: 0.6,
-        minTrackingConfidence: 0.6
+        minTrackingConfidence: 0.6,
       });
 
       faceMesh.onResults(handleResults);
@@ -118,7 +144,7 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
             }
           },
           width: 640,
-          height: 480
+          height: 480,
         });
 
         camera.start();
@@ -127,8 +153,13 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
       }
     } catch (err: any) {
       console.error("Failed to start camera or face mesh:", err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setErrorMsg("Izin akses kamera ditolak. Silakan aktifkan izin kamera di browser Anda.");
+      if (
+        err.name === "NotAllowedError" ||
+        err.name === "PermissionDeniedError"
+      ) {
+        setErrorMsg(
+          "Izin akses kamera ditolak. Silakan aktifkan izin kamera di browser Anda.",
+        );
         setPermissionGranted(false);
       } else {
         setErrorMsg(`Gagal mengaktifkan kamera: ${err.message || err}`);
@@ -143,9 +174,13 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
   };
 
   const calculateEAR = (
-    landmarks: any[], 
-    p1: number, p2: number, p3: number, 
-    p4: number, p5: number, p6: number
+    landmarks: any[],
+    p1: number,
+    p2: number,
+    p3: number,
+    p4: number,
+    p5: number,
+    p6: number,
   ) => {
     const pt1 = landmarks[p1];
     const pt2 = landmarks[p2];
@@ -165,8 +200,12 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
   };
 
   const handleResults = (results: any) => {
-    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+    if (
+      !results.multiFaceLandmarks ||
+      results.multiFaceLandmarks.length === 0
+    ) {
       onFaceDetected(false);
+      onEyePrediction(null);
       drawEmptyCanvas();
       return;
     }
@@ -191,13 +230,55 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
     const averageEar = (leftEar + rightEar) / 2;
 
     onEarCalculated(leftEar, rightEar, averageEar);
+    void runEyeInference(landmarks);
     drawOverlay(landmarks);
+  };
+
+  const runEyeInference = (landmarks: any[]) => {
+    if (
+      !eyeClassifierModel ||
+      eyeClassifierStatus !== "ready" ||
+      !videoRef.current
+    ) {
+      return;
+    }
+
+    const now = performance.now();
+    if (
+      isInferenceRunningRef.current ||
+      now - lastInferenceAtRef.current < 120
+    ) {
+      return;
+    }
+
+    isInferenceRunningRef.current = true;
+    lastInferenceAtRef.current = now;
+
+    try {
+      const prediction = inferEyePrediction(
+        eyeClassifierModel,
+        videoRef.current,
+        landmarks,
+        {
+          inputSize: 96,
+          paddingRatio: 0.3,
+          normalization: "zeroToOne",
+        },
+      );
+
+      onEyePrediction(prediction);
+    } catch (err) {
+      console.error("Eye inference failed:", err);
+      onEyePrediction(null);
+    } finally {
+      isInferenceRunningRef.current = false;
+    }
   };
 
   const drawEmptyCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
@@ -205,7 +286,7 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
   const drawOverlay = (landmarks: any[]) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     // Set canvas dimensions to match video stream size
@@ -245,14 +326,14 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
       ctx.stroke();
 
       // Draw individual keypoints
-      indices.forEach(index => {
+      indices.forEach((index) => {
         const pt = landmarks[index];
         if (!pt) return;
         const x = isMirrored ? (1 - pt.x) * canvas.width : pt.x * canvas.width;
         const y = pt.y * canvas.height;
         ctx.beginPath();
         ctx.arc(x, y, 2.5, 0, 2 * Math.PI);
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = "#ffffff";
         ctx.fill();
         ctx.strokeStyle = color;
         ctx.lineWidth = 1;
@@ -261,19 +342,19 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
     };
 
     // Draw left and right eye outlines in high contrast neon color
-    drawEye(leftIndices, '#3b82f6'); // Blue for left
-    drawEye(rightIndices, '#6366f1'); // Indigo for right
+    drawEye(leftIndices, "#3b82f6"); // Blue for left
+    drawEye(rightIndices, "#6366f1"); // Indigo for right
 
     // Draw some facial outline nodes to indicate tech tracking
     const faceOutlineIndices = [10, 152, 234, 454]; // forehead, chin, left cheek, right cheek
-    faceOutlineIndices.forEach(index => {
+    faceOutlineIndices.forEach((index) => {
       const pt = landmarks[index];
       if (!pt) return;
       const x = isMirrored ? (1 - pt.x) * canvas.width : pt.x * canvas.width;
       const y = pt.y * canvas.height;
       ctx.beginPath();
       ctx.arc(x, y, 3, 0, 2 * Math.PI);
-      ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
+      ctx.fillStyle = "rgba(99, 102, 241, 0.6)";
       ctx.fill();
     });
   };
@@ -286,14 +367,14 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
         playsInline
         muted
         className="absolute top-0 left-0 w-full h-full object-cover -scale-x-100"
-        style={{ display: isActive && permissionGranted ? 'block' : 'none' }}
+        style={{ display: isActive && permissionGranted ? "block" : "none" }}
       />
-      
+
       {/* Canvas Drawing Layer */}
       <canvas
         ref={canvasRef}
         className="absolute top-0 left-0 w-full h-full object-cover pointer-events-none"
-        style={{ display: isActive && permissionGranted ? 'block' : 'none' }}
+        style={{ display: isActive && permissionGranted ? "block" : "none" }}
       />
 
       {/* Screen states overlays */}
@@ -303,9 +384,12 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
             <CameraOff className="w-6 h-6 text-indigo-400" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white">Deteksi Kamera Non-Aktif</h4>
+            <h4 className="text-sm font-bold text-white">
+              Deteksi Kamera Non-Aktif
+            </h4>
             <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
-              Aktifkan mode webcam untuk memantau wajah secara real-time melalui kamera laptop Anda.
+              Aktifkan mode webcam untuk memantau wajah secara real-time melalui
+              kamera laptop Anda.
             </p>
           </div>
         </div>
@@ -318,8 +402,13 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
             <Video className="w-4 h-4 text-white absolute" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white">Menyalakan Kamera...</h4>
-            <p className="text-xs text-slate-400 mt-1">Mengunduh modul FaceMesh & menginisialisasi input video.</p>
+            <h4 className="text-sm font-bold text-white">
+              Menyalakan Kamera...
+            </h4>
+            <p className="text-xs text-slate-400 mt-1">
+              Mengunduh modul FaceMesh, memuat model CNN, dan menginisialisasi
+              input video.
+            </p>
           </div>
         </div>
       )}
@@ -330,8 +419,12 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div className="max-w-xs">
-            <h4 className="text-sm font-bold text-white">Gagal Memulai Deteksi</h4>
-            <p className="text-xs text-rose-400 mt-1 leading-relaxed">{errorMsg}</p>
+            <h4 className="text-sm font-bold text-white">
+              Gagal Memulai Deteksi
+            </h4>
+            <p className="text-xs text-rose-400 mt-1 leading-relaxed">
+              {errorMsg}
+            </p>
           </div>
         </div>
       )}
@@ -340,7 +433,7 @@ export default function WebcamDetection({ onEarCalculated, onFaceDetected, isAct
       {isActive && permissionGranted && !loading && !errorMsg && (
         <div className="absolute top-3 right-3 bg-indigo-500/80 backdrop-blur-md text-indigo-150 text-white px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase z-20 shadow-lg border border-indigo-500/30">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          LIVE TRACKING
+          LIVE TRACKING {eyeClassifierStatus === "ready" ? "• CNN" : ""}
         </div>
       )}
     </div>

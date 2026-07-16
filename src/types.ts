@@ -6,7 +6,7 @@
 export enum DriverStatus {
   Safe = "Active / Safe",
   Warning = "Squinting / Warning",
-  Drowsy = "Drowsiness Detected! Wake Up!"
+  Drowsy = "Drowsiness Detected! Wake Up!",
 }
 
 export interface EarLog {
@@ -18,7 +18,14 @@ export interface EarLog {
 }
 
 export interface SystemSettings {
-  earThreshold: number;       // EAR value below which eyes are considered closed (typically ~0.22)
-  durationThreshold: number;  // Seconds of continuous closure before alarm triggers (typically ~2.0s)
-  isAlarmEnabled: boolean;    // Toggle sound alert
+  earThreshold: number; // EAR value below which eyes are considered closed (typically ~0.22)
+  durationThreshold: number; // Seconds of continuous closure before alarm triggers (typically ~2.0s)
+  isAlarmEnabled: boolean; // Toggle sound alert
+}
+
+export interface EyePrediction {
+  leftClosedProbability: number;
+  rightClosedProbability: number;
+  averageClosedProbability: number;
+  isClosedByModel: boolean;
 }
