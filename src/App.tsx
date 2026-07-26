@@ -25,7 +25,6 @@ import { startAlarmBuzzer, stopAlarmBuzzer } from "./utils/audio";
 import WebcamDetection from "./components/WebcamDetection";
 import ManualSimulation from "./components/ManualSimulation";
 import Dashboard from "./components/Dashboard";
-import ReportViewer from "./components/ReportViewer";
 
 export default function App() {
   const [useWebcam, setUseWebcam] = useState(false);
@@ -381,9 +380,6 @@ export default function App() {
           onResetSimulation={handleResetSimulation}
           useWebcam={useWebcam}
         />
-
-        {/* Expandable Project Report Section */}
-        <ReportViewer />
       </main>
 
       {/* Decorative clean academic footer */}
