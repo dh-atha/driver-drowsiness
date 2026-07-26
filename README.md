@@ -1,19 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Driver Drowsiness Detection
 
-# Run and deploy your AI Studio app
+React + TypeScript + Vite application for driver drowsiness detection.
 
-This contains everything you need to run your app locally.
+## Prerequisites
 
-View your app in AI Studio: https://ai.studio/apps/367b6c8a-f246-470e-b597-16a0276fc54c
+- Node.js `v24.14.0`
+- npm `11.9.0`
 
 ## Run Locally
 
-**Prerequisites:** Node.js
-
 1. Install dependencies:
-   `npm install`
-   `npm i --save-dev @types/react`
-2. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Optional
+
+Build a production bundle:
+
+```bash
+npm run build
+```
+
+Preview the production build:
+
+```bash
+npm run preview
+```
